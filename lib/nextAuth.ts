@@ -34,6 +34,7 @@ import {
 import { slackNotify } from './slack';
 import { maxLengthPolicies } from '@/lib/common';
 import { forceConsume } from '@/lib/server-common';
+import { logEvent } from './analytics';
 
 const adapter = PrismaAdapter(prisma);
 const providers: Provider[] = [];
@@ -68,14 +69,17 @@ if (isAuthProviderEnabled('credentials')) {
         const user = await getUser({ email });
 
         if (!user) {
+          logEvent('login_failed', 'authentication', 'invalid_credentials');
           throw new Error('invalid-credentials');
         }
 
         if (exceededLoginAttemptsThreshold(user)) {
+          logEvent('login_failed', 'authentication', 'account_locked');
           throw new Error('exceeded-login-attempts');
         }
 
         if (env.confirmEmail && !user.emailVerified) {
+          logEvent('login_failed', 'authentication', 'email_not_verified');
           throw new Error('confirm-your-email');
         }
 
@@ -85,6 +89,8 @@ if (isAuthProviderEnabled('credentials')) {
         );
 
         if (!hasValidPassword) {
+          logEvent('login_failed', 'authentication', 'invalid_password');
+
           if (
             exceededLoginAttemptsThreshold(await incrementLoginAttempts(user))
           ) {
@@ -93,7 +99,7 @@ if (isAuthProviderEnabled('credentials')) {
 
           throw new Error('invalid-credentials');
         }
-
+        logEvent('login_success', 'authentication', 'credentials');
         await clearLoginAttempts(user);
 
         return {
@@ -229,6 +235,7 @@ if (isAuthProviderEnabled('email')) {
       maxAge: 1 * 60 * 60, // 1 hour
       sendVerificationRequest: async ({ identifier, url }) => {
         await sendMagicLink(identifier, url);
+        logEvent('magic_link_sent', 'authentication', identifier);
       },
     })
   );
@@ -284,11 +291,14 @@ export const getAuthOptions = (
     secret: env.nextAuth.secret,
     callbacks: {
       async signIn({ user, account, profile }) {
+        logEvent('user_signin', 'authentication', `provider_${account?.provider}`);
         if (!user || !user.email || !account) {
           return false;
         }
 
         if (!isEmailAllowed(user.email)) {
+          logEvent('signin_failed', 'authentication', 'email_not_allowed');
+
           return '/auth/login?error=allow-only-work-email';
         }
 
@@ -301,16 +311,19 @@ export const getAuthOptions = (
         }
 
         if (account?.provider === 'credentials') {
+          logEvent('signin_success', 'authentication', 'credentials');
           return true;
         }
 
         // Login via email (Magic Link)
         if (account?.provider === 'email') {
+          logEvent('signin_success', 'authentication', 'magic_link');
           return Boolean(existingUser);
         }
 
         // First time users
         if (!existingUser) {
+          logEvent('user_created', 'authentication', account.provider);
           const newUser = await createUser({
             name: `${user.name}`,
             email: `${user.email}`,
@@ -335,6 +348,7 @@ export const getAuthOptions = (
             fields: {
               Name: user.name || '',
               Email: user.email,
+              Provider: account.provider,
             },
           });
 
@@ -351,7 +365,7 @@ export const getAuthOptions = (
         if (!linkedAccount) {
           await linkAccount(existingUser, account);
         }
-
+        logEvent('signin_success', 'authentication', account.provider);
         return true;
       },
 

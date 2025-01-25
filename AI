@@ -1,0 +1,88 @@
+#!/bin/bash
+
+mkdir -p ai_files
+rm -rf ai_files/*
+
+declare -A file_counts
+
+copy_file() {
+    local file=$1
+    local relative_path=${file#./}
+    local base_name=$(basename "${file%.*}")
+
+    if [[ -v "file_counts[$base_name]" ]]; then
+        file_counts[$base_name]=$((file_counts[$base_name] + 1))
+        dest_file="ai_files/${base_name}_${file_counts[$base_name]}.txt"
+    else
+        file_counts[$base_name]=1
+        dest_file="ai_files/${base_name}.txt"
+    fi
+
+    # Add the path comment at the beginning of the new file
+    {
+        echo "// File: $relative_path"
+        cat "$file"
+    } > "$dest_file"
+}
+find ./components -type f | while read -r file; do
+    copy_file "$file"
+done
+
+find ./hooks -type f | while read -r file; do
+    copy_file "$file"
+done
+
+find ./lib -type f | while read -r file; do
+    copy_file "$file"
+done
+
+find ./models -type f | while read -r file; do
+    copy_file "$file"
+done
+
+find ./pages -type f | while read -r file; do
+    copy_file "$file"
+done
+
+find ./styles -type f | while read -r file; do
+    copy_file "$file"
+done
+
+find ./types -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./.env.example -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./delete-team.js -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./check-locale.js -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./find-dupe-locale.js -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./instrumentation.ts -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./middleware.ts -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./package.json -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./sync-stripe.js -type f | while read -r file; do
+    copy_file "$file"
+done
+find ./tailwind.config.js -type f | while read -r file; do
+    copy_file "$file"
+done
+
+
+if [ -f "./prisma/schema.prisma" ]; then
+    copy_file "./prisma/schema.prisma";
+    copy_file "./prisma/seed.ts"
+fi
+
+# git add ai_files

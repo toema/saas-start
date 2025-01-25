@@ -4,7 +4,9 @@ const env = {
   databaseUrl: `${process.env.DATABASE_URL}`,
   appUrl: `${process.env.APP_URL}`,
   redirectIfAuthenticated: '/dashboard',
-
+  analytics: {
+    googleAnalyticsId: process.env.NEXT_PUBLIC_GA_ID,
+  },
   // SMTP configuration for NextAuth
   smtp: {
     host: process.env.SMTP_HOST,

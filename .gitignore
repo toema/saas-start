@@ -6,6 +6,8 @@
 .pnp.js
 yarn.lock
 
+/ai_files
+
 # testing
 /coverage
 

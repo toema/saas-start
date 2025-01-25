@@ -14,12 +14,17 @@ import env from '@/lib/env';
 import { Theme, applyTheme } from '@/lib/theme';
 import { Themer } from '@boxyhq/react-ui/shared';
 import { AccountLayout } from '@/components/layouts';
+import { useRouter } from 'next/router';
+import { initGA, logPageView } from '@/lib/analytics';
 
 function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+  const router = useRouter();
   const { session, ...props } = pageProps;
 
   // Add mixpanel
   useEffect(() => {
+    initGA();
+    
     if (env.mixpanel.token) {
       mixpanel.init(env.mixpanel.token, {
         debug: true,
@@ -31,7 +36,17 @@ function MyApp({ Component, pageProps }: AppPropsWithLayout) {
     if (env.darkModeEnabled) {
       applyTheme(localStorage.getItem('theme') as Theme);
     }
-  }, []);
+    const handleRouteChange = (url: string) => {
+      logPageView(url);
+    };
+
+    router.events.on('routeChangeComplete', handleRouteChange);
+
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange);
+    };
+  
+  }, [router.events]);
 
   const getLayout =
     Component.getLayout || ((page) => <AccountLayout>{page}</AccountLayout>);
